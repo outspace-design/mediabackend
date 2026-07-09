@@ -92,4 +92,12 @@ public ResponseEntity<?> createUser(@RequestBody CreateUserRequest request) {
         userRepository.save(user);
         return ResponseEntity.ok(new UserResponse(user.getId(), user.getUsername(), user.getRole(), user.isEnabled()));
     }
+    @GetMapping("/me")
+    public ResponseEntity<?> me(Authentication authentication){
+
+        return ResponseEntity.ok(Map.of(
+                "username", authentication.getName(),
+                "authorities", authentication.getAuthorities()
+        ));
+    }
 }
