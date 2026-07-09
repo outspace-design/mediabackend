@@ -41,12 +41,28 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/api/media/generate-ppt", "/api/media/generate-ppt-bulk", "/api/media/generate-pdf", "/api/media/generate-pdf-bulk").authenticated()
+
+                        // Allow CORS preflight
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // Public authentication APIs
+                        .requestMatchers("/api/auth/**").permitAll()
+
+                        // Protected Media APIs
                         .requestMatchers(HttpMethod.GET, "/api/media/**").authenticated()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/media/generate-ppt",
+                                "/api/media/generate-ppt-bulk",
+                                "/api/media/generate-pdf",
+                                "/api/media/generate-pdf-bulk")
+                        .authenticated()
+
+                        // Admin APIs
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/media").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/media/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/media/**").hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -60,9 +76,9 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
-
+        configuration.setExposedHeaders(List.of("Authorization"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
 
