@@ -37,33 +37,32 @@ public class AdminUserController {
         return ResponseEntity.ok(users);
     }
 
- @PostMapping
+ @Autowired
+private JdbcTemplate jdbcTemplate;
+
+@PostMapping
 public ResponseEntity<?> createUser(@RequestBody CreateUserRequest request) {
 
-    System.out.println("========== CREATE USER ==========");
-    System.out.println("Username = " + request.getUsername());
-    System.out.println("Role = " + request.getRole());
-
-    boolean exists = userRepository.findByUsername(request.getUsername()).isPresent();
-
-    System.out.println("Already Exists = " + exists);
-
-    if (exists) {
+    if (userRepository.findByUsername(request.getUsername()).isPresent()) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("message", "Username already exists"));
     }
 
-    User user = new User();
-    user.setUsername(request.getUsername());
-    user.setPassword(passwordEncoder.encode(request.getPassword()));
-    user.setRole(request.getRole());
-    user.setEnabled(true);
+    Long nextId = jdbcTemplate.queryForObject(
+            "SELECT IFNULL(MAX(id),0)+1 FROM users",
+            Long.class
+    );
 
-    userRepository.save(user);
+    jdbcTemplate.update(
+            "INSERT INTO users(id,username,password,role,enabled) VALUES (?,?,?,?,?)",
+            nextId,
+            request.getUsername(),
+            passwordEncoder.encode(request.getPassword()),
+            request.getRole().name(),
+            true
+    );
 
-    System.out.println("User Saved");
-
-    return ResponseEntity.ok(Map.of("message","SUCCESS"));
+    return ResponseEntity.ok(Map.of("message","User created"));
 }
 
     @PatchMapping("/{id}/enable")
