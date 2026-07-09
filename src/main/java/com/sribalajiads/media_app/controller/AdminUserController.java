@@ -37,23 +37,32 @@ public class AdminUserController {
         return ResponseEntity.ok(users);
     }
 
-    @PostMapping
-    public ResponseEntity<?> createUser(@RequestBody CreateUserRequest request) {
-        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(Map.of("message", "Username already exists"));
-        }
+  @PostMapping
+public ResponseEntity<?> createUser(@RequestBody CreateUserRequest request) {
 
-        User user = new User();
-        user.setUsername(request.getUsername());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(request.getRole() != null ? request.getRole() : Role.USER);
-        user.setEnabled(true);
+    System.out.println("Incoming username = " + request.getUsername());
 
-        User saved = userRepository.save(user);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new UserResponse(saved.getId(), saved.getUsername(), saved.getRole(), saved.isEnabled()));
+    var existing = userRepository.findByUsername(request.getUsername());
+
+    System.out.println("Lookup result = " + existing);
+
+    if (existing.isPresent()) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("message", "Username already exists"));
     }
+
+    User user = new User();
+    user.setUsername(request.getUsername());
+    user.setPassword(passwordEncoder.encode(request.getPassword()));
+    user.setRole(request.getRole());
+    user.setEnabled(true);
+
+    userRepository.save(user);
+
+    System.out.println("User created successfully");
+
+    return ResponseEntity.ok("SUCCESS");
+}
 
     @PatchMapping("/{id}/enable")
     public ResponseEntity<?> enableUser(@PathVariable Long id) {
