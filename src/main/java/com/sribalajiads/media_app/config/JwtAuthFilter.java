@@ -43,11 +43,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
 
             final String jwt = authHeader.substring(7);
-
+            System.out.println("JWT = " + jwt);
             final String username;
 
             try {
                 username = jwtService.extractUsername(jwt);
+                System.out.println("Username = " + username);
             } catch (Exception e) {
                 filterChain.doFilter(request, response);
                 return;
@@ -58,9 +59,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
                 UserDetails userDetails =
                         userDetailsService.loadUserByUsername(username);
+                System.out.println("Authorities = " + userDetails.getAuthorities());
 
                 if (jwtService.isTokenValid(jwt, userDetails)) {
-
+                     System.out.println("TOKEN VALID");
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
@@ -76,9 +78,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
             }
 
-        } catch (Exception ignored) {
-            // Invalid token
-        }
+        } catch (Exception e) {
+    e.printStackTrace();
+}
 
         filterChain.doFilter(request, response);
     }
