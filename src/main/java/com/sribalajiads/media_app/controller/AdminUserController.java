@@ -37,16 +37,18 @@ public class AdminUserController {
         return ResponseEntity.ok(users);
     }
 
-  @PostMapping
+ @PostMapping
 public ResponseEntity<?> createUser(@RequestBody CreateUserRequest request) {
 
-    System.out.println("Incoming username = " + request.getUsername());
+    System.out.println("========== CREATE USER ==========");
+    System.out.println("Username = " + request.getUsername());
+    System.out.println("Role = " + request.getRole());
 
-    var existing = userRepository.findByUsername(request.getUsername());
+    boolean exists = userRepository.findByUsername(request.getUsername()).isPresent();
 
-    System.out.println("Lookup result = " + existing);
+    System.out.println("Already Exists = " + exists);
 
-    if (existing.isPresent()) {
+    if (exists) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("message", "Username already exists"));
     }
@@ -59,9 +61,9 @@ public ResponseEntity<?> createUser(@RequestBody CreateUserRequest request) {
 
     userRepository.save(user);
 
-    System.out.println("User created successfully");
+    System.out.println("User Saved");
 
-    return ResponseEntity.ok("SUCCESS");
+    return ResponseEntity.ok(Map.of("message","SUCCESS"));
 }
 
     @PatchMapping("/{id}/enable")
