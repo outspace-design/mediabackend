@@ -56,7 +56,7 @@ public class SecurityConfig {
                         .requestMatchers("/uploads/**").permitAll()
 
                         // Admin
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").authenticated()
 
                         // Media
                         .requestMatchers(HttpMethod.GET, "/api/media/**").authenticated()
