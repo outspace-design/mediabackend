@@ -30,33 +30,28 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain)
-            throws ServletException, IOException {
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
-
-        System.out.println("======================================");
-        System.out.println("Request : " + request.getMethod() + " " + request.getRequestURI());
-        System.out.println("Authorization : " + authHeader);
+        final String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            System.out.println("No Bearer Token");
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
 
-            String jwt = authHeader.substring(7);
+            final String jwt = authHeader.substring(7);
+
+            final String username;
 
             try {
-    username = jwtService.extractUsername(jwt);
-} catch (Exception e) {
-    filterChain.doFilter(request, response);
-    return;
-}
-
-            System.out.println("JWT Username : " + username);
+                username = jwtService.extractUsername(jwt);
+            } catch (Exception e) {
+                filterChain.doFilter(request, response);
+                return;
+            }
 
             if (username != null &&
                     SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -64,14 +59,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 UserDetails userDetails =
                         userDetailsService.loadUserByUsername(username);
 
-                System.out.println("Authorities : " + userDetails.getAuthorities());
-
-                boolean valid =
-                        jwtService.isTokenValid(jwt, userDetails);
-
-                System.out.println("Token Valid : " + valid);
-
-                if (valid) {
+                if (jwtService.isTokenValid(jwt, userDetails)) {
 
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
@@ -85,17 +73,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
                     SecurityContextHolder.getContext()
                             .setAuthentication(authToken);
-
-                    System.out.println("Authentication SUCCESS");
                 }
-
             }
 
-        } catch (Exception e) {
-
-            System.out.println("JWT ERROR");
-            e.printStackTrace();
-
+        } catch (Exception ignored) {
+            // Invalid token
         }
 
         filterChain.doFilter(request, response);
