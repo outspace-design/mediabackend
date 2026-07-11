@@ -1,6 +1,6 @@
 package com.sribalajiads.media_app.config;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
-
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,11 +27,11 @@ public class SupabaseConfig {
     @Value("${supabase.secret-key}")
     private String secretKey;
 
-    @Bean(name = "supabaseClient")
+   @Bean(name = "supabaseClient")
 public S3Client supabaseClient() {
 
     return S3Client.builder()
-            .httpClientBuilder(ApacheHttpClient.builder())
+            .httpClientBuilder(UrlConnectionHttpClient.builder())
             .endpointOverride(URI.create(endpoint))
             .region(Region.of(region))
             .credentialsProvider(
