@@ -18,7 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
+import java.io.IOException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
@@ -51,7 +51,11 @@ public class MediaController {
         Media createdMedia = mediaService.createMedia(belongsTo, mediaCode, location, city, specifications, illumination, mediaType, imageFile, trafficView, locationUrl, coordinates);
         return new ResponseEntity<>(createdMedia, HttpStatus.CREATED);
     }
-
+@PostMapping
+public ResponseEntity<Media> createMedia(...) throws IOException {
+    Media media = mediaService.createMedia(...);
+    return ResponseEntity.ok(media);
+}
     @GetMapping
     public ResponseEntity<Page<Media>> getMedia(
             @RequestParam(name = "company", required = false) String company,
