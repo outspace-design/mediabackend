@@ -35,6 +35,7 @@ public class MediaService {
     private final ImageStorageService imageStorageService; // replaces FileStorageService
     private final PptGenerationService pptGenerationService;
     private final PdfGenerationService pdfGenerationService;
+    private final SupabaseStorageService supabaseStorageService;
 
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
 
@@ -342,4 +343,15 @@ private byte[] optimizeImageIfNeeded(byte[] originalBytes) throws IOException {
 
         return result;
     }
+
+    @Autowired
+public MediaService(MediaRepository mediaRepository, ImageStorageService imageStorageService,
+                    PptGenerationService pptGenerationService, PdfGenerationService pdfGenerationService,
+                    SupabaseStorageService supabaseStorageService) {
+    this.mediaRepository = mediaRepository;
+    this.imageStorageService = imageStorageService;
+    this.pptGenerationService = pptGenerationService;
+    this.pdfGenerationService = pdfGenerationService;
+    this.supabaseStorageService = supabaseStorageService;
+}
 }
