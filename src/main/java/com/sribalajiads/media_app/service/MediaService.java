@@ -13,7 +13,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
+import net.coobird.thumbnailator.Thumbnails;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -218,6 +220,38 @@ public class MediaService {
         mediaRepository.deleteById(id);
     }
 
+    
+private static final long MAX_UPLOAD_BYTES = 9_000_000; // stay under Cloudinary's 10MB cap
+
+private byte[] optimizeImageIfNeeded(byte[] originalBytes) throws IOException {
+    if (originalBytes.length <= MAX_UPLOAD_BYTES) {
+        return originalBytes;
+    }
+
+    BufferedImage image = ImageIO.read(new ByteArrayInputStream(originalBytes));
+    if (image == null) {
+        return originalBytes; // fallback, let it fail upstream with real error
+    }
+
+    double quality = 0.85;
+    byte[] result = originalBytes;
+
+    do {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Thumbnails.of(image)
+                .size(1920, 1920)
+                .outputFormat("jpg")
+                .outputQuality(quality)
+                .toOutputStream(out);
+        result = out.toByteArray();
+        quality -= 0.1;
+    } while (result.length > MAX_UPLOAD_BYTES && quality > 0.3);
+
+    return result;
+}
+
+
+    
     @Transactional
     public BulkImageUploadResult processBulkImageZip(MultipartFile zipFile) throws IOException {
         BulkImageUploadResult result = new BulkImageUploadResult();
@@ -274,11 +308,16 @@ public class MediaService {
                         while ((len = zis.read(buffer)) > 0) {
                             baos.write(buffer, 0, len);
                         }
-                        byte[] imageBytes = baos.toByteArray();
+                        // byte[] imageBytes = baos.toByteArray();
 
-                        String oldPublicId = matchedMedia.getPublicId();
-                        UploadResult uploadResult = imageStorageService.upload(imageBytes, matchedMedia.getMediaCode(), extension);
+                        // String oldPublicId = matchedMedia.getPublicId();
+                        // UploadResult uploadResult = imageStorageService.upload(imageBytes, matchedMedia.getMediaCode(), extension);
+                       byte[] rawBytes = baos.toByteArray();
+                       byte[] imageBytes = optimizeImageIfNeeded(rawBytes);
+                       String finalExtension = (imageBytes == rawBytes) ? extension : "jpg";
 
+                       String oldPublicId = matchedMedia.getPublicId();
+                        UploadResult uploadResult = imageStorageService.upload(imageBytes, matchedMedia.getMediaCode(), finalExtension);
                         if (oldPublicId != null && !oldPublicId.equals(uploadResult.getPublicId())) {
                             imageStorageService.delete(oldPublicId);
                         }
