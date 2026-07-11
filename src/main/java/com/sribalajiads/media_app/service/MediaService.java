@@ -1,5 +1,5 @@
 package com.sribalajiads.media_app.service;
-
+import com.sribalajiads.media_app.storage.SupabaseStorageService;
 import com.sribalajiads.media_app.dto.BulkImageUploadResult;
 import com.sribalajiads.media_app.exception.ResourceNotFoundException;
 import com.sribalajiads.media_app.model.Company;
@@ -40,38 +40,42 @@ public class MediaService {
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
 
 
-    @Autowired
-    public MediaService(MediaRepository mediaRepository, ImageStorageService imageStorageService,
-                        PptGenerationService pptGenerationService, PdfGenerationService pdfGenerationService) {
-        this.mediaRepository = mediaRepository;
-        this.imageStorageService = imageStorageService;
-        this.pptGenerationService = pptGenerationService;
-        this.pdfGenerationService = pdfGenerationService;
-    }
+      @Autowired
+public MediaService(MediaRepository mediaRepository, ImageStorageService imageStorageService,
+                    PptGenerationService pptGenerationService, PdfGenerationService pdfGenerationService,
+                    SupabaseStorageService supabaseStorageService) {
+    this.mediaRepository = mediaRepository;
+    this.imageStorageService = imageStorageService;
+    this.pptGenerationService = pptGenerationService;
+    this.pdfGenerationService = pdfGenerationService;
+    this.supabaseStorageService = supabaseStorageService;
+}
 
-    @Transactional
-    public Media createMedia(String belongsTo, String mediaCode, String location, String city, String specifications, String illumination, String mediaType, MultipartFile imageFile, String trafficView, String locationUrl, String coordinates) {
+ @Transactional
+public Media createMedia(String belongsTo, String mediaCode, String location, String city, String specifications, String illumination, String mediaType, MultipartFile imageFile, String trafficView, String locationUrl, String coordinates) throws IOException {
 
-        UploadResult uploadResult = imageStorageService.upload(imageFile, mediaCode);
+    UploadResult uploadResult = imageStorageService.upload(imageFile, mediaCode);
+    String supabaseUrl = supabaseStorageService.upload(imageFile.getBytes(), mediaCode, extractExt(imageFile.getOriginalFilename()));
 
-        Media newMedia = new Media();
-        newMedia.setBelongsTo(Company.valueOf(belongsTo.toUpperCase()));
-        newMedia.setMediaCode(mediaCode);
-        newMedia.setLocation(location);
-        newMedia.setTrafficView(trafficView);
-        newMedia.setCity(city);
-        newMedia.setSpecifications(specifications);
-        newMedia.setIllumination(illumination);
-        newMedia.setMediaType(mediaType);
-        newMedia.setImageUrl(uploadResult.getImageUrl());
-        newMedia.setPublicId(uploadResult.getPublicId());
-        newMedia.setStorageProvider(uploadResult.getProvider());
-        newMedia.setImagePath(uploadResult.getPublicId()); // backward compat
-        newMedia.setLocationUrl(locationUrl);
-        newMedia.setCoordinates(coordinates);
+    Media newMedia = new Media();
+    newMedia.setBelongsTo(Company.valueOf(belongsTo.toUpperCase()));
+    newMedia.setMediaCode(mediaCode);
+    newMedia.setLocation(location);
+    newMedia.setTrafficView(trafficView);
+    newMedia.setCity(city);
+    newMedia.setSpecifications(specifications);
+    newMedia.setIllumination(illumination);
+    newMedia.setMediaType(mediaType);
+    newMedia.setImageUrl(uploadResult.getImageUrl());
+    newMedia.setPublicId(uploadResult.getPublicId());
+    newMedia.setStorageProvider(uploadResult.getProvider());
+    newMedia.setImagePath(uploadResult.getPublicId());
+    newMedia.setOriginalImageUrl(supabaseUrl);
+    newMedia.setLocationUrl(locationUrl);
+    newMedia.setCoordinates(coordinates);
 
-        return mediaRepository.save(newMedia);
-    }
+    return mediaRepository.save(newMedia);
+}
 
     public Page<Media> getMedia(String company, String mediaType, String query, Pageable pageable) {
         final String searchQuery = (query == null) ? "" : query;
@@ -309,27 +313,30 @@ private byte[] optimizeImageIfNeeded(byte[] originalBytes) throws IOException {
                         while ((len = zis.read(buffer)) > 0) {
                             baos.write(buffer, 0, len);
                         }
-                        // byte[] imageBytes = baos.toByteArray();
-
-                        // String oldPublicId = matchedMedia.getPublicId();
-                        // UploadResult uploadResult = imageStorageService.upload(imageBytes, matchedMedia.getMediaCode(), extension);
                        byte[] rawBytes = baos.toByteArray();
-                       byte[] imageBytes = optimizeImageIfNeeded(rawBytes);
-                       String finalExtension = (imageBytes == rawBytes) ? extension : "jpg";
 
-                       String oldPublicId = matchedMedia.getPublicId();
-                        UploadResult uploadResult = imageStorageService.upload(imageBytes, matchedMedia.getMediaCode(), finalExtension);
-                        if (oldPublicId != null && !oldPublicId.equals(uploadResult.getPublicId())) {
-                            imageStorageService.delete(oldPublicId);
-                        }
+// Upload original (unoptimized) to Supabase as backup
+String supabaseUrl = supabaseStorageService.upload(rawBytes, matchedMedia.getMediaCode(), extension);
+matchedMedia.setOriginalImageUrl(supabaseUrl);
 
-                        matchedMedia.setImageUrl(uploadResult.getImageUrl());
-                        matchedMedia.setPublicId(uploadResult.getPublicId());
-                        matchedMedia.setStorageProvider(uploadResult.getProvider());
-                        matchedMedia.setImagePath(uploadResult.getPublicId());
-                        mediaRepository.save(matchedMedia);
+// Optimize + upload to Cloudinary as before
+byte[] imageBytes = optimizeImageIfNeeded(rawBytes);
+String finalExtension = (imageBytes == rawBytes) ? extension : "jpg";
 
-                        result.getMatched().add(matchedMedia.getMediaCode());
+String oldPublicId = matchedMedia.getPublicId();
+UploadResult uploadResult = imageStorageService.upload(imageBytes, matchedMedia.getMediaCode(), finalExtension);
+
+if (oldPublicId != null && !oldPublicId.equals(uploadResult.getPublicId())) {
+    imageStorageService.delete(oldPublicId);
+}
+
+matchedMedia.setImageUrl(uploadResult.getImageUrl());
+matchedMedia.setPublicId(uploadResult.getPublicId());
+matchedMedia.setStorageProvider(uploadResult.getProvider());
+matchedMedia.setImagePath(uploadResult.getPublicId());
+mediaRepository.save(matchedMedia);
+
+result.getMatched().add(matchedMedia.getMediaCode());
                     } catch (Exception e) {
                         result.getSkipped().add(fileName + " (error: " + e.getMessage() + ")");
                     }
@@ -344,14 +351,5 @@ private byte[] optimizeImageIfNeeded(byte[] originalBytes) throws IOException {
         return result;
     }
 
-    @Autowired
-public MediaService(MediaRepository mediaRepository, ImageStorageService imageStorageService,
-                    PptGenerationService pptGenerationService, PdfGenerationService pdfGenerationService,
-                    SupabaseStorageService supabaseStorageService) {
-    this.mediaRepository = mediaRepository;
-    this.imageStorageService = imageStorageService;
-    this.pptGenerationService = pptGenerationService;
-    this.pdfGenerationService = pdfGenerationService;
-    this.supabaseStorageService = supabaseStorageService;
-}
+
 }
