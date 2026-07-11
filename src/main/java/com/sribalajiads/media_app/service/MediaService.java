@@ -76,7 +76,11 @@ public Media createMedia(String belongsTo, String mediaCode, String location, St
 
     return mediaRepository.save(newMedia);
 }
-
+private String extractExt(String filename) {
+    if (filename == null) return "jpg";
+    int idx = filename.lastIndexOf('.');
+    return idx == -1 ? "jpg" : filename.substring(idx + 1);
+}
     public Page<Media> getMedia(String company, String mediaType, String query, Pageable pageable) {
         final String searchQuery = (query == null) ? "" : query;
         boolean hasCompany = company != null && !company.isBlank();
