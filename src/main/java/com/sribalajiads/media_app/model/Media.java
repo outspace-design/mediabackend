@@ -132,4 +132,13 @@ public class Media {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
     private String originalImageUrl; // Supabase Storage URL
+    private String originalImageUrl; // Supabase Storage URL
+
+public String getOriginalImageUrl() {
+    return originalImageUrl;
+}
+
+public void setOriginalImageUrl(String originalImageUrl) {
+    this.originalImageUrl = originalImageUrl;
+}
 }
